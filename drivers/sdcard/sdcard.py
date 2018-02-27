@@ -18,6 +18,13 @@ Example usage on ESP8266:
     os.mount(sd, '/sd')
     os.listdir('/')
 
+Example usage on ESP32:
+
+    import machine, sdcard, os
+    sd = sdcard.SDCard(machine.SPI(1),machine.Pin(5),machine.Pin(18),machine.Pin(23),machine.Pin(19))
+    os.mount(sd, '/sd')
+    os.listdir('/')
+
 """
 
 from micropython import const
@@ -39,9 +46,12 @@ _TOKEN_DATA = const(0xfe)
 
 
 class SDCard:
-    def __init__(self, spi, cs):
+    def __init__(self, spi, cs, sck=None, mosi=None, miso=None):
         self.spi = spi
         self.cs = cs
+        self.sck = sck
+        self.mosi = mosi
+        self.miso = miso
 
         self.cmdbuf = bytearray(6)
         self.dummybuf = bytearray(512)
@@ -57,8 +67,18 @@ class SDCard:
         try:
             master = self.spi.MASTER
         except AttributeError:
-            # on ESP8266
-            self.spi.init(baudrate=baudrate, phase=0, polarity=0)
+            if self.sck:
+                # on ESP32
+                self.spi.init(
+                    baudrate=baudrate,
+                    phase=0,
+                    polarity=0,
+                    sck=self.sck,
+                    mosi=self.mosi,
+                    miso=self.miso)
+            else:
+                # on ESP8266
+                self.spi.init(baudrate=baudrate, phase=0, polarity=0)
         else:
             # on pyboard
             self.spi.init(master, baudrate=baudrate, phase=0, polarity=0)
